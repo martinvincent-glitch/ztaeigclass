@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZTA 零信任雙向不信任決策模擬器 (E1B1 優化)</title>
+    <style>
+        :root {
+            --primary: #1976d2;
+            --primary-light: #e3f2fd;
+            --success: #2e7d32;
+            --success-light: #e8f5e9;
+            --warning: #f57c00;
+            --warning-light: #fff3e0;
+            --danger: #c62828;
+            --danger-light: #ffebee;
+            --dark: #263238;
+            --text-dark: #37474f;
+            --bg-light: #f8f9fa;
+            --border: #cfd8dc;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            line-height: 1.5;
+        }
+
+        /* Header Styling */
+        header {
+            background: linear-gradient(135deg, #0d47a1 0%, #1565c0 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        header p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        /* Left Side: Controller Panel */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .card-title {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--dark);
+            border-bottom: 2px solid var(--primary-light);
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Presentation Walkthrough Player */
+        .walkthrough-player {
+            background: linear-gradient(to bottom, #fff, #f1f8e9);
+            border: 2px solid #a5d6a7;
+        }
+
+        .step-desc {
+            font-size: 14px;
+            background: #e8f5e9;
+            border-left: 4px solid var(--success);
+            padding: 10px;
+            border-radius: 0 4px 4px 0;
+            margin-bottom: 15px;
+            min-height: 50px;
+            color: #1b5e20;
+        }
+
+        .player-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        /* Buttons & Forms */
+        button.btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        button.btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        button.btn-success {
+            background-color: var(--success);
+        }
+
+        button.btn-danger {
+            background-color: var(--danger);
+        }
+
+        button.btn-warning {
+            background-color: var(--warning);
+        }
+
+        button.btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dark);
+        }
+
+        button.btn-outline:hover {
+            background-color: #eee;
+        }
+
+        .slider-group {
+            margin-bottom: 15px;
+        }
+
+        .slider-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .slider-group input[type="range"] {
+            width: 100%;
+            margin: 0;
+        }
+
+        .vuln-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        /* Right Side: Visual Dashboard */
+        .dashboard-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* ZTA Entities State Grid */
+        .entities-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 12px;
+            text-transform: uppercase;
+        }
+
+        .badge-success {
+            background-color: var(--success-light);
+            color: var(--success);
+            border: 1px solid #c8e6c9;
+        }
+
+        .badge-danger {
+            background-color: var(--danger-light);
+            color: var(--danger);
+            border: 1px solid #ffcdd2;
+        }
+
+        .badge-warning {
+            background-color: var(--warning-light);
+            color: var(--warning);
+            border: 1px solid #ffe0b2;
+        }
+
+        .badge-info {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            border: 1px solid #bbdefb;
+        }
+
+        /* Dynamic Table for PIP */
+        table.pip-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+
+        table.pip-table th,
+        table.pip-table td {
+            border: 1px solid var(--border);
+            padding: 8px;
+            text-align: left;
+        }
+
+        table.pip-table th {
+            background-color: var(--bg-light);
+            font-weight: bold;
+        }
+
+        /* Okta Gateway Verdict Box */
+        .verdict-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .verdict-card.approved {
+            background-color: var(--success-light);
+            border: 2px solid #a5d6a7;
+            color: #1b5e20;
+        }
+
+        .verdict-card.blocked {
+            background-color: var(--danger-light);
+            border: 2px solid #ef9a9a;
+            color: #b71c1c;
+        }
+
+        .verdict-status {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+
+        .verdict-prompt {
+            font-size: 16px;
+            font-weight: bold;
+            padding: 15px 20px;
+            border-radius: 6px;
+            margin-top: 15px;
+            line-height: 1.6;
+            max-width: 600px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .verdict-card.approved .verdict-prompt {
+            background-color: #c8e6c9;
+            border: 1px solid #81c784;
+        }
+
+        .verdict-card.blocked .verdict-prompt {
+            background-color: #ffcdd2;
+            border: 1px solid #e57373;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.02);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        /* Trust Formula Visualizer */
+        .formula-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--dark);
+        }
+
+        .formula-block {
+            background: var(--bg-light);
+            padding: 10px 15px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+        }
+
+        .formula-block .val {
+            font-size: 24px;
+            color: var(--primary);
+            display: block;
+            margin-top: 5px;
+        }
+
+        .formula-block.danger .val {
+            color: var(--danger);
+        }
+
+        .formula-block.success .val {
+            color: var(--success);
+        }
+
+        /* API Sync Monitor Pane */
+        .api-monitor {
+            background-color: #263238;
+            color: #eceff1;
+            padding: 12px 18px;
+            border-radius: 6px;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 12px;
+            margin-top: 10px;
+            overflow-x: auto;
+            max-height: 120px;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Log Terminal Pane at Bottom */
+        .log-section {
+            margin-top: 10px;
+        }
+
+        .terminal-box {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            line-height: 1.5;
+            box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .terminal-box .cyan {
+            color: #00bcd4;
+        }
+
+        .terminal-box .yellow {
+            color: #ffeb3b;
+        }
+
+        .terminal-box .red {
+            color: #f44336;
+        }
+
+        .terminal-box .green {
+            color: #4caf50;
+        }
+
+        .terminal-box .magenta {
+            color: #e91e63;
+        }
+
+        .terminal-box .bold {
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>🛡️ ZTA 零信任雙向不信任決策模擬系統 (E1B1)</h1>
+        <p>實踐 NIST SP 800-207 核心規範：拒絕對「存在重大漏洞之目標資源 (Resource)」建立連線</p>
+    </header>
+
+    <div class="main-container">
+
+        <!-- Sidebar Controls -->
+        <div class="sidebar">
+
+            <!-- Walkthrough Presentation -->
+            <div class="card walkthrough-player">
+                <div class="card-title">📖 課堂展示引導 (Walkthrough)</div>
+                <div class="step-desc" id="step-description">尚未啟動。點擊下方的「下一步」或「自動播放」開始課程演示。</div>
+                <div class="player-controls">
+                    <button class="btn btn-outline" id="btn-prev" onclick="walkthroughPrev()" disabled>上一步</button>
+                    <button class="btn btn-success" id="btn-next" onclick="walkthroughNext()">下一步 ➔</button>
+                </div>
+                <button class="btn btn-outline" style="margin-top:10px; width:100%;" onclick="resetWalkthrough()">🔄
+                    重設演示劇本</button>
+            </div>
+
+            <!-- Manual Custom Sandbox Controls -->
+            <div class="card">
+                <div class="card-title">⚙️ 自訂沙盒控制項</div>
+
+                <!-- Subject sliders -->
+                <div class="slider-group">
+                    <label>
+                        <span>身分認證分數 (MFA/憑證)</span>
+                        <span id="lbl-id-score" style="color:var(--primary)">5.0</span>
+                    </label>
+                    <input type="range" id="rng-id-score" min="0" max="5" step="0.5" value="5.0"
+                        oninput="updateScores()">
+                </div>
+
+                <div class="slider-group">
+                    <label>
+                        <span>端點安全分數 (EDR/MDM)</span>
+                        <span id="lbl-device-score" style="color:var(--primary)">5.0</span>
+                    </label>
+                    <input type="range" id="rng-device-score" min="0" max="5" step="0.5" value="5.0"
+                        oninput="updateScores()">
+                </div>
+
+                <!-- Asset Vuln Injectors -->
+                <div class="vuln-selector">
+                    <span style="font-size: 13px; font-weight: bold;">漏洞漏洞注入 (Tenable.io 模擬器)</span>
+                    <div style="display:flex; gap: 5px;">
+                        <button class="btn btn-danger btn-outline" style="flex:1; padding: 6px;"
+                            onclick="injectVulnerability('AWS WordPress', 'CVE-2026-WordPress-RCE', 9.8)">注入 WP 漏洞
+                            (9.8)</button>
+                        <button class="btn btn-success btn-outline" style="flex:1; padding: 6px;"
+                            onclick="patchVulnerability('AWS WordPress')">修補 WP 漏洞</button>
+                    </div>
+                    <div style="display:flex; gap: 5px;">
+                        <button class="btn btn-danger btn-outline" style="flex:1; padding: 6px;"
+                            onclick="injectVulnerability('AWS GitLab', 'CVE-2026-GitLab-RCE', 9.2)">注入 GL 漏洞
+                            (9.2)</button>
+                        <button class="btn btn-success btn-outline" style="flex:1; padding: 6px;"
+                            onclick="patchVulnerability('AWS GitLab')">修補 GL 漏洞</button>
+                    </div>
+                </div>
+
+                <div style="border-top: 1px solid var(--border); padding-top: 10px; margin-top: 12px;">
+                    <label
+                        style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:bold; cursor:pointer;">
+                        <input type="checkbox" id="chk-auto-sync" checked style="width:15px; height:15px; margin:0;">
+                        <span>⚡ 快速聯動模式 (自動掃描/同步)</span>
+                    </label>
+                    <span style="font-size:11px; color:gray; display:block; margin-top:3px;">啟用後，調整分數或注入漏洞會自動完成「掃描 ➔ 同步
+                        ➔ 評估」。</span>
+                </div>
+
+                <div
+                    style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px; display:flex; flex-direction:column; gap:8px;">
+                    <button class="btn btn-outline" onclick="triggerScanAndSync()">🛡️ 執行 Tenable 掃描與 PIP 同步</button>
+                    <button class="btn" style="background-color: var(--dark);" onclick="simulateAccessRequest()">🚪
+                        連線存取測試 (Okta PDP)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard View -->
+        <div class="dashboard-content">
+
+            <!-- Entities Status Cards -->
+            <div class="entities-grid">
+
+                <!-- Subject status -->
+                <div class="card">
+                    <div class="card-title">👤 發起端點 (Subject)</div>
+                    <div style="font-size: 14px;">
+                        <div><strong>身分 ID:</strong> <span class="badge badge-info">alice@enterprise1.com</span></div>
+                        <div style="margin-top: 8px;"><strong>認證狀態:</strong> <span class="badge badge-success">已通過 FIDO2
+                                MFA</span></div>
+                        <div style="margin-top: 8px;"><strong>端點設備:</strong> DEV-97141580 (Windows 11)</div>
+                        <div style="margin-top: 8px; display: flex; align-items:center; gap: 5px;">
+                            <strong>總合規分數:</strong>
+                            <span id="badge-subject-score" class="badge badge-success" style="font-size:12px;">10.0 /
+                                10.0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resources status -->
+                <div class="card">
+                    <div class="card-title">🖥️ 目標資產 (AWS Resources)</div>
+                    <div style="font-size: 14px; display:flex; flex-direction:column; gap:12px;">
+                        <div style="border-bottom: 1px dashed var(--border); padding-bottom: 6px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <strong>AWS WordPress:</strong>
+                                <span id="tag-wp-status" class="badge badge-success">Healthy</span>
+                            </div>
+                            <div style="font-size:12px; color:gray; margin-top:2px;">最高漏洞曝險值: <span id="lbl-wp-cvss"
+                                    style="font-weight:bold; color:var(--success)">0.0</span> (CVSS)</div>
+                        </div>
+                        <div>
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <strong>AWS GitLab:</strong>
+                                <span id="tag-gl-status" class="badge badge-success">Healthy</span>
+                            </div>
+                            <div style="font-size:12px; color:gray; margin-top:2px;">最高漏洞曝險值: <span id="lbl-gl-cvss"
+                                    style="font-weight:bold; color:var(--success)">0.0</span> (CVSS)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Radiant Logic Virtual Directory -->
+                <div class="card" style="grid-column: span 1;">
+                    <div class="card-title">🗂️ 虛擬目錄狀態 (Radiant Logic ICS - PIP)</div>
+                    <table class="pip-table">
+                        <thead>
+                            <tr>
+                                <th>資源名稱</th>
+                                <th>同步標籤</th>
+                                <th>曝險值</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>AWS WordPress</td>
+                                <td><span id="pip-wp-tag" class="badge badge-success">Healthy</span></td>
+                                <td id="pip-wp-val">0.0</td>
+                            </tr>
+                            <tr>
+                                <td>AWS GitLab</td>
+                                <td><span id="pip-gl-tag" class="badge badge-success">Healthy</span></td>
+                                <td id="pip-gl-val">0.0</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <!-- Okta PDP Engine & Dynamic Score Equation -->
+            <div class="card">
+                <div class="card-title">🧠 雙向條件式存取決策引擎 (Okta PDP / Ivanti Access PEP)</div>
+
+                <!-- Live Trust Equation -->
+                <div class="formula-container">
+                    <div class="formula-block">
+                        身分認證分數 (Subject)
+                        <span class="val" id="eq-id">5.0</span>
+                    </div>
+                    <span>+</span>
+                    <div class="formula-block">
+                        端點安全分數 (Device)
+                        <span class="val" id="eq-device">5.0</span>
+                    </div>
+                    <span>-</span>
+                    <div class="formula-block danger">
+                        目標資源漏洞分數 (Resource Risk)
+                        <span class="val" id="eq-resource">0.0</span>
+                    </div>
+                    <span>=</span>
+                    <div class="formula-block success" id="eq-result-container">
+                        總信任分數 (Total Trust)
+                        <span class="val" id="eq-total">10.0</span>
+                    </div>
+                    <span style="font-size: 14px; color: gray;">(閥值: 7.0)</span>
+                </div>
+
+                <!-- Dynamic Access Authorization Verdict Card -->
+                <div id="verdict-display" class="verdict-card approved">
+                    <div id="verdict-status-text" class="verdict-status">AUTHORIZED (允許存取)</div>
+                    <div id="verdict-saml-text">🟢 PEP 成功阻截/授權：已向受信任端點核發 SAML 安全通行憑證</div>
+                    <div id="verdict-warning-box" class="verdict-prompt" style="display:none;"></div>
+                </div>
+            </div>
+
+            <!-- API Sync payload monitor -->
+            <div class="card">
+                <div class="card-title">🔗 系統整合 API 監控傳輸 (Tenable.io ➔ Radiant Logic API Payload)</div>
+                <div class="api-monitor" id="api-monitor-payload">// 尚無同步通訊記錄。請注入漏洞或執行同步。</div>
+            </div>
+
+            <!-- Logs / Cyber Console -->
+            <div class="card log-section">
+                <div class="card-title">💻 系統後台事件軌跡 (ZTA EIG Control Logs)</div>
+                <div class="terminal-box" id="log-terminal"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        // --- System State ---
+        let state = {
+            subject: {
+                username: "alice@enterprise1.com",
+                device_id: "DEV-97141580",
+                identity_score: 5.0,
+                device_health_score: 5.0
+            },
+            assets: {
+                "AWS WordPress": {
+                    ip: "10.0.12.44",
+                    cves: [],
+                    status: "Healthy",
+                    vulnerability_score: 0.0
+                },
+                "AWS GitLab": {
+                    ip: "10.0.12.88",
+                    cves: [],
+                    status: "Healthy",
+                    vulnerability_score: 0.0
+                }
+            },
+            pip: {
+                "AWS WordPress": { status: "Healthy", vulnerability_score: 0.0 },
+                "AWS GitLab": { status: "Healthy", vulnerability_score: 0.0 }
+            },
+            currentStep: 0,
+            targetAccess: "AWS WordPress"
+        };
+
+        // --- Presentation Step Definition ---
+        const walkthroughSteps = [
+            {
+                title: "步驟 A: 正常狀態下的存取請求",
+                desc: "1. 模擬起始：使用者 Alice 端點完全合規 (身分及端點安全均為 5.0 滿分)。\n2. Alice 發起對 AWS WordPress 的存取連線。\n3. Okta 查閱 PIP (Radiant Logic) 發現該資源安全狀態為 Healthy。\n4. 信任分數計算為 10.0，高於安全閥值 7.0，OKTA 順利核發 SAML 連線憑證。",
+                action: async () => {
+                    resetState();
+                    updateUI();
+                    await printSystemLog("--- 執行步驟 A: 正常合規存取 ---", "magenta bold");
+                    evaluateAccess();
+                }
+            },
+            {
+                title: "步驟 B: 漏洞爆發與掃描 (Tenable.io)",
+                desc: "1. 重大事故：AWS 上的 WordPress 伺服器突發重大 RCE 安全漏洞 (CVSS: 9.8)。\n2. Tenable.io 自動化弱點掃描器立刻分析出此弱點，評估其 CVSS 分數 > 9.0。\n3. Tenable 立即產生資產動態風險標籤 [Status: Vulnerable_Critical]。",
+                action: async () => {
+                    await printSystemLog("\n--- 執行步驟 B: 漏洞爆發與 Tenable.io 掃描 ---", "magenta bold");
+                    injectVulnerabilityDirect("AWS WordPress", "CVE-2026-WordPress-RCE", 9.8);
+                    await runTenableScan("AWS WordPress");
+                }
+            },
+            {
+                title: "步驟 C: 屬性即時同步 (Tenable ➔ Radiant Logic)",
+                desc: "1. Tenable.io 呼叫 API 將掃描結果即時上傳至 Radiant Logic ICS 虛擬目錄 (PIP)。\n2. 此時，在身分全景虛擬目錄中，WordPress 伺服器狀態標籤被自動修改為 [Status: Vulnerable_Critical]。\n3. 這為決策引擎 (PDP) 提供了動態「目標方」安全屬性感知。",
+                action: async () => {
+                    await printSystemLog("\n--- 執行步驟 C: 透過 API 同步屬性至 PIP ---", "magenta bold");
+                    await syncToPIP("AWS WordPress");
+                }
+            },
+            {
+                title: "步驟 D: 升級後的雙向條件式存取決策",
+                desc: "1. Alice 再次發起存取 WordPress 的請求。\n2. Okta 動態拉取 Radiant Logic 上的最新狀態，發現資源漏洞分數為 9.8。\n3. 套用雙向 ABAC 公式: (5.0 + 5.0) - 9.8 = 0.2。結果小於安全閥值 7.0。\n4. Okta 拒絕發放憑證，並彈出自動保護安全性提示。",
+                action: async () => {
+                    await printSystemLog("\n--- 執行步驟 D: Okta 發動動態條件式攔截 ---", "magenta bold");
+                    evaluateAccess();
+                }
+            },
+            {
+                title: "步驟 E: 管理員執行安全性修補與恢復",
+                desc: "1. IT 資安管理員緊急部署 WordPress 更新更新檔以修補該 RCE 漏洞。\n2. 漏洞修復後，Tenable.io 掃描回報 Healthy，並同步回 Radiant Logic 虛擬目錄。\n3. Alice 再次發起存取，信任分數恢復至 10.0，成功恢復連線通行！",
+                action: async () => {
+                    await printSystemLog("\n--- 執行步驟 E: 安全修復與連線恢復 ---", "magenta bold");
+                    patchVulnerabilityDirect("AWS WordPress");
+                    await runTenableScan("AWS WordPress");
+                    await syncToPIP("AWS WordPress");
+                    evaluateAccess();
+                }
+            }
+        ];
+
+        // --- Log Output Helper ---
+        const logTerminal = document.getElementById("log-terminal");
+        const apiMonitor = document.getElementById("api-monitor-payload");
+
+        function printLogToBox(text, className = "") {
+            const div = document.createElement("div");
+            if (className) div.className = className;
+            div.textContent = text;
+            logTerminal.appendChild(div);
+            logTerminal.scrollTop = logTerminal.scrollHeight;
+        }
+
+        async function printSystemLog(text, className = "", delay = 0) {
+            printLogToBox(text, className);
+            if (delay > 0) await new Promise(r => setTimeout(r, delay));
+        }
+
+        // --- UI Updates Binding ---
+        function updateUI() {
+            // Update Sliders labels
+            document.getElementById("lbl-id-score").textContent = state.subject.identity_score.toFixed(1);
+            document.getElementById("lbl-device-score").textContent = state.subject.device_health_score.toFixed(1);
+            document.getElementById("rng-id-score").value = state.subject.identity_score;
+            document.getElementById("rng-device-score").value = state.subject.device_health_score;
+
+            const totalSubScore = state.subject.identity_score + state.subject.device_health_score;
+            const badgeSub = document.getElementById("badge-subject-score");
+            badgeSub.textContent = `${totalSubScore.toFixed(1)} / 10.0`;
+            if (totalSubScore >= 9.0) {
+                badgeSub.className = "badge badge-success";
+            } else if (totalSubScore >= 7.0) {
+                badgeSub.className = "badge badge-warning";
+            } else {
+                badgeSub.className = "badge badge-danger";
+            }
+
+            // Update WordPress & GitLab States
+            const wp = state.assets["AWS WordPress"];
+            const gl = state.assets["AWS GitLab"];
+
+            document.getElementById("lbl-wp-cvss").textContent = wp.vulnerability_score.toFixed(1);
+            const tagWp = document.getElementById("tag-wp-status");
+            tagWp.textContent = wp.status;
+            tagWp.className = `badge badge-${wp.status === 'Healthy' ? 'success' : 'danger'}`;
+            document.getElementById("lbl-wp-cvss").style.color = wp.vulnerability_score >= 9.0 ? 'var(--danger)' : (wp.vulnerability_score > 0 ? 'var(--warning)' : 'var(--success)');
+
+            document.getElementById("lbl-gl-cvss").textContent = gl.vulnerability_score.toFixed(1);
+            const tagGl = document.getElementById("tag-gl-status");
+            tagGl.textContent = gl.status;
+            tagGl.className = `badge badge-${gl.status === 'Healthy' ? 'success' : 'danger'}`;
+            document.getElementById("lbl-gl-cvss").style.color = gl.vulnerability_score >= 9.0 ? 'var(--danger)' : (gl.vulnerability_score > 0 ? 'var(--warning)' : 'var(--success)');
+
+            // Update PIP Table
+            const pipWp = state.pip["AWS WordPress"];
+            const pipGl = state.pip["AWS GitLab"];
+
+            const pipWpTag = document.getElementById("pip-wp-tag");
+            pipWpTag.textContent = pipWp.status;
+            pipWpTag.className = `badge badge-${pipWp.status === 'Healthy' ? 'success' : 'danger'}`;
+            document.getElementById("pip-wp-val").textContent = pipWp.vulnerability_score.toFixed(1);
+
+            const pipGlTag = document.getElementById("pip-gl-tag");
+            pipGlTag.textContent = pipGl.status;
+            pipGlTag.className = `badge badge-${pipGl.status === 'Healthy' ? 'success' : 'danger'}`;
+            document.getElementById("pip-gl-val").textContent = pipGl.vulnerability_score.toFixed(1);
+
+            // Update Trust Score Equation Visualization
+            const targetPip = state.pip[state.targetAccess];
+            const identityVal = state.subject.identity_score;
+            const deviceVal = state.subject.device_health_score;
+            const resourceVal = targetPip.vulnerability_score;
+            const totalTrust = (identityVal + deviceVal) - resourceVal;
+
+            document.getElementById("eq-id").textContent = identityVal.toFixed(1);
+            document.getElementById("eq-device").textContent = deviceVal.toFixed(1);
+            document.getElementById("eq-resource").textContent = resourceVal.toFixed(1);
+
+            const eqResourceBlock = document.getElementById("eq-resource").parentElement;
+            if (resourceVal >= 9.0) {
+                eqResourceBlock.className = "formula-block danger";
+            } else if (resourceVal > 0) {
+                eqResourceBlock.className = "formula-block danger";
+                eqResourceBlock.style.borderColor = "var(--warning)";
+            } else {
+                eqResourceBlock.className = "formula-block";
+            }
+
+            const eqResult = document.getElementById("eq-total");
+            const eqResultContainer = document.getElementById("eq-result-container");
+            eqResult.textContent = totalTrust.toFixed(1);
+
+            const verdictDisplay = document.getElementById("verdict-display");
+            const verdictStatus = document.getElementById("verdict-status-text");
+            const verdictSAML = document.getElementById("verdict-saml-text");
+            const warningBox = document.getElementById("verdict-warning-box");
+
+            if (totalTrust >= 7.0) {
+                eqResultContainer.className = "formula-block success";
+                verdictDisplay.className = "verdict-card approved";
+                verdictStatus.textContent = "AUTHORIZED (允許存取)";
+                verdictSAML.textContent = `🟢 PDP 成功驗證：已向使用者授權連線至 ${state.targetAccess} 並簽發 SAML 連線憑證`;
+                warningBox.style.display = "none";
+            } else {
+                eqResultContainer.className = "formula-block danger";
+                verdictDisplay.className = "verdict-card blocked";
+                verdictStatus.textContent = "BLOCKED (阻斷存取)";
+                verdictSAML.textContent = `❌ PDP 判定不合規：基於目標資源漏洞扣分過重，Okta 拒絕簽發 SAML 通行證`;
+
+                warningBox.style.display = "block";
+                warningBox.textContent = `安全性提示：目標系統 (${state.targetAccess}) 目前存在重大安全缺陷，系統已啟動自動保護，在修補完成前暫停開放存取。`;
+            }
+        }
+
+        // --- Sandbox Interactive Methods ---
+        function updateScores() {
+            state.subject.identity_score = parseFloat(document.getElementById("rng-id-score").value);
+            state.subject.device_health_score = parseFloat(document.getElementById("rng-device-score").value);
+            updateUI();
+            if (document.getElementById("chk-auto-sync").checked) {
+                evaluateAccess();
+            }
+        }
+
+        async function injectVulnerability(assetName, cveId, cvss) {
+            injectVulnerabilityDirect(assetName, cveId, cvss);
+            printLogToBox(`[手動操作] 於 ${assetName} 注入安全漏洞 ${cveId} (CVSS: ${cvss})`, "yellow");
+            updateUI();
+            if (document.getElementById("chk-auto-sync").checked) {
+                state.targetAccess = assetName;
+                await runTenableScan(assetName);
+                await syncToPIP(assetName);
+                evaluateAccess();
+            }
+        }
+
+        function injectVulnerabilityDirect(assetName, cveId, cvss) {
+            const asset = state.assets[assetName];
+            asset.cves.push({ id: cveId, desc: "Manual Vuln Injected", cvss: cvss });
+            asset.vulnerability_score = Math.max(...asset.cves.map(c => c.cvss));
+        }
+
+        async function patchVulnerability(assetName) {
+            patchVulnerabilityDirect(assetName);
+            printLogToBox(`[手動操作] 對 ${assetName} 部署安全修補程式，清空所有 CVE 弱點`, "green");
+            updateUI();
+            if (document.getElementById("chk-auto-sync").checked) {
+                state.targetAccess = assetName;
+                await runTenableScan(assetName);
+                await syncToPIP(assetName);
+                evaluateAccess();
+            }
+        }
+
+        function patchVulnerabilityDirect(assetName) {
+            const asset = state.assets[assetName];
+            asset.cves = [];
+            asset.vulnerability_score = 0.0;
+            asset.status = "Healthy";
+        }
+
+        async function runTenableScan(assetName) {
+            const asset = state.assets[assetName];
+            await printSystemLog(`[Tenable.io] 🛡️ 啟動對 ${assetName} (${asset.ip}) 的持續性安全弱點掃描...`, "yellow", 300);
+
+            const highest_cvss = asset.vulnerability_score;
+            await printSystemLog(`[Tenable.io] 掃描分析完成。最高 CVSS 3.1 曝險值: ${highest_cvss}`, "yellow", 200);
+
+            if (highest_cvss >= 9.0) {
+                asset.status = "Vulnerable_Critical";
+                await printSystemLog(`[Tenable.io] 🚨 偵測到重大漏洞！CVSS >= 9.0。產生動態標籤: [Status: Vulnerable_Critical]`, "red bold", 200);
+            } else if (highest_cvss > 0) {
+                asset.status = "Vulnerable_High";
+                await printSystemLog(`[Tenable.io] ⚠️ 偵測到高危漏洞。產生動態標籤: [Status: Vulnerable_High]`, "yellow", 200);
+            } else {
+                asset.status = "Healthy";
+                await printSystemLog(`[Tenable.io] ✅ 資產狀態良好，未偵測到威脅。`, "green", 200);
+            }
+            updateUI();
+        }
+
+        async function syncToPIP(assetName) {
+            const asset = state.assets[assetName];
+            await printSystemLog(`[Radiant Logic API] 🔄 接收到來自 Tenable.io 的屬性同步請求...`, "cyan", 300);
+
+            const payload = {
+                resource_id: assetName,
+                posture: {
+                    status: asset.status,
+                    risk_score: asset.vulnerability_score,
+                    scanner: "Tenable.io"
+                },
+                timestamp: Math.floor(Date.now() / 1000)
+            };
+
+            // Display in the API transmission payload codeblock
+            apiMonitor.textContent = `// API POST REQUEST SENT AT: ${new Date().toLocaleTimeString()}\n` +
+                `POST https://radiant-logic.local/api/v1/virtual-directory/sync HTTP/1.1\n` +
+                `Content-Type: application/json\n\n` +
+                JSON.stringify(payload, null, 2);
+
+            state.pip[assetName].status = asset.status;
+            state.pip[assetName].vulnerability_score = asset.vulnerability_score;
+
+            await printSystemLog(`[Radiant Logic] ✅ 同步成功。身分全景圖虛擬目錄已更新: ${assetName} ➔ [${asset.status}] (Score: ${asset.vulnerability_score})`, "cyan", 200);
+            updateUI();
+        }
+
+        async function triggerScanAndSync() {
+            printLogToBox(`[手動操作] 觸發 Tenable.io 資產全掃描與 Radiant Logic ICS 全同步...`, "cyan");
+            await runTenableScan("AWS WordPress");
+            await syncToPIP("AWS WordPress");
+            await runTenableScan("AWS GitLab");
+            await syncToPIP("AWS GitLab");
+        }
+
+        function evaluateAccess() {
+            const target = state.targetAccess;
+            printLogToBox(`[Okta PDP] 🧠 進行 ABAC 存取決策評估中... 請求者: ${state.subject.username} 存取: ${target}`, "magenta bold");
+
+            const targetPip = state.pip[target];
+            const identityVal = state.subject.identity_score;
+            const deviceVal = state.subject.device_health_score;
+            const resourceVal = targetPip.vulnerability_score;
+            const totalTrust = (identityVal + deviceVal) - resourceVal;
+
+            printLogToBox(`決策公式結果: (${identityVal.toFixed(1)} + ${deviceVal.toFixed(1)}) - ${resourceVal.toFixed(1)} = ${totalTrust.toFixed(1)} (閥值: 7.0)`);
+
+            if (totalTrust >= 7.0) {
+                printLogToBox(`[Okta PEP] 🟢 決策核准！已向端點簽發 SAML 連線憑證，通道開啟。`, "green bold");
+            } else {
+                printLogToBox(`[Okta PEP] ❌ 決策拒絕！總信任分數 ${totalTrust.toFixed(1)} 低於閥值。`, "red bold");
+                printLogToBox(`[Okta PEP Rejection Prompt] Target system is vulnerable. Suspended access.`, "red");
+            }
+            updateUI();
+        }
+
+        function simulateAccessRequest() {
+            const ans = prompt("請選擇存取目標 (1: AWS WordPress, 2: AWS GitLab)", "1");
+            state.targetAccess = ans === "2" ? "AWS GitLab" : "AWS WordPress";
+            evaluateAccess();
+        }
+
+        // --- Walkthrough Player Engine ---
+        function resetState() {
+            state.subject.identity_score = 5.0;
+            state.subject.device_health_score = 5.0;
+            state.targetAccess = "AWS WordPress";
+            patchVulnerabilityDirect("AWS WordPress");
+            patchVulnerabilityDirect("AWS GitLab");
+            state.pip["AWS WordPress"] = { status: "Healthy", vulnerability_score: 0.0 };
+            state.pip["AWS GitLab"] = { status: "Healthy", vulnerability_score: 0.0 };
+            apiMonitor.textContent = "// 尚無同步通訊記錄。";
+        }
+
+        async function resetWalkthrough() {
+            state.currentStep = 0;
+            resetState();
+            logTerminal.innerHTML = "";
+            await printSystemLog("=== 🔄 已重置引導劇本與模擬器狀態 ===", "bold");
+            updateWalkthroughUI();
+            updateUI();
+        }
+
+        function updateWalkthroughUI() {
+            const step = walkthroughSteps[state.currentStep];
+            document.getElementById("step-description").innerHTML = `<strong>${step.title}</strong><br><br>${step.desc.replace(/\n/g, '<br>')}`;
+
+            document.getElementById("btn-prev").disabled = state.currentStep === 0;
+            document.getElementById("btn-next").textContent = state.currentStep === walkthroughSteps.length - 1 ? "🔄 重新開始" : "下一步 ➔";
+        }
+
+        async function walkthroughNext() {
+            if (state.currentStep === walkthroughSteps.length - 1) {
+                resetWalkthrough();
+                return;
+            }
+
+            const step = walkthroughSteps[state.currentStep];
+            await step.action();
+
+            state.currentStep++;
+            updateWalkthroughUI();
+        }
+
+        async function walkthroughPrev() {
+            if (state.currentStep > 0) {
+                state.currentStep--;
+                updateWalkthroughUI();
+                const step = walkthroughSteps[state.currentStep];
+                await step.action();
+            }
+        }
+
+        // --- Init Window ---
+        window.onload = () => {
+            resetWalkthrough();
+        };
+    </script>
+</body>
+
+</html>
